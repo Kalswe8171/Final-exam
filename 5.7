@@ -1,0 +1,273 @@
+-- ============================================================
+-- SDC250 FINAL EXAM
+-- Student: Kaleb Sweeney
+-- ============================================================
+
+
+-- ============================================================
+-- QUESTION 1
+-- Using the COURSE table, find all courses that cost less
+-- than the average course price.
+-- ============================================================
+
+SELECT description,
+       course_no,
+       TO_CHAR(cost, '$9,999') AS cost
+FROM course
+WHERE cost < (
+    SELECT AVG(cost)
+    FROM course
+)
+ORDER BY cost DESC;
+
+
+-- ============================================================
+-- QUESTION 2
+-- List all courses and their corresponding sections.
+-- ============================================================
+
+SELECT c.course_no,
+       c.description,
+       TO_CHAR(c.cost, '$9,999') AS cost,
+       s.start_date_time
+FROM course c
+JOIN section s
+    ON c.course_no = s.course_no
+ORDER BY c.course_no,
+         c.description;
+
+
+-- ============================================================
+-- QUESTION 3
+-- Show all ZIP codes and the number of instructors
+-- living in each ZIP code.
+-- ============================================================
+
+SELECT z.zip,
+       COUNT(i.instructor_id) AS instructor_count
+FROM zipcode z
+LEFT JOIN instructor i
+    ON z.zip = i.zip
+GROUP BY z.zip
+ORDER BY z.zip;
+
+
+-- ============================================================
+-- QUESTION 4
+-- Show all students who live in Brooklyn.
+-- ============================================================
+
+SELECT s.student_id,
+       s.first_name,
+       s.last_name,
+       s.street_address,
+       z.state,
+       s.zip
+FROM student s
+JOIN zipcode z
+    ON s.zip = z.zip
+WHERE UPPER(z.city) = 'BROOKLYN'
+ORDER BY s.last_name,
+         s.first_name;
+
+
+-- ============================================================
+-- QUESTION 5
+-- List all instructors and the number of sections they teach.
+-- ============================================================
+
+SELECT i.first_name,
+       i.last_name,
+       COUNT(s.section_id) AS number_of_sections
+FROM instructor i
+LEFT JOIN section s
+    ON i.instructor_id = s.instructor_id
+GROUP BY i.instructor_id,
+         i.first_name,
+         i.last_name
+ORDER BY number_of_sections DESC;
+
+
+-- ============================================================
+-- QUESTION 6
+-- List students who live in the same ZIP code
+-- as instructor Tom Wojick.
+-- ============================================================
+
+SELECT first_name,
+       last_name,
+       street_address,
+       zip
+FROM student
+WHERE zip = (
+    SELECT zip
+    FROM instructor
+    WHERE UPPER(first_name) = 'TOM'
+      AND UPPER(last_name) = 'WOJICK'
+)
+ORDER BY last_name,
+         first_name;
+
+
+-- ============================================================
+-- QUESTION 7
+-- List all students who registered before Vera Wetcel.
+-- ============================================================
+
+SELECT student_id,
+       salutation,
+       first_name,
+       last_name
+FROM student
+WHERE registration_date < (
+    SELECT registration_date
+    FROM student
+    WHERE UPPER(first_name) = 'VERA'
+      AND UPPER(last_name) = 'WETCEL'
+)
+ORDER BY registration_date;
+
+
+-- ============================================================
+-- QUESTION 8
+-- Find students who have not enrolled in any classes.
+-- ============================================================
+
+SELECT s.student_id
+FROM student s
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM enrollment e
+    WHERE e.student_id = s.student_id
+)
+ORDER BY s.student_id;
+
+
+-- ============================================================
+-- QUESTION 9
+-- Create a view containing all students and instructors.
+-- ============================================================
+
+CREATE OR REPLACE VIEW all_people_view AS
+SELECT salutation,
+       first_name || ' ' || last_name AS full_name,
+       street_address,
+       zip,
+       phone
+FROM student
+
+UNION ALL
+
+SELECT salutation,
+       first_name || ' ' || last_name AS full_name,
+       street_address,
+       zip,
+       phone
+FROM instructor;
+
+
+-- Display the view
+
+SELECT *
+FROM all_people_view
+ORDER BY full_name;
+
+
+-- ============================================================
+-- QUESTION 10
+-- Show the student who received the highest final grade.
+-- ============================================================
+
+SELECT DISTINCT s.first_name,
+                s.last_name,
+                s.student_id
+FROM student s
+JOIN enrollment e
+    ON s.student_id = e.student_id
+WHERE e.final_grade = (
+    SELECT MAX(final_grade)
+    FROM enrollment
+);
+
+
+-- ============================================================
+-- QUESTION 11
+-- List courses that have more than 5 sections.
+-- ============================================================
+
+SELECT c.course_no,
+       c.description,
+       COUNT(s.section_id) AS number_of_sections
+FROM course c
+JOIN section s
+    ON c.course_no = s.course_no
+GROUP BY c.course_no,
+         c.description
+HAVING COUNT(s.section_id) > 5
+ORDER BY number_of_sections DESC;
+
+
+-- ============================================================
+-- QUESTION 12
+-- List all courses and their prerequisites, if any.
+-- ============================================================
+
+SELECT c.course_no,
+       c.description,
+       TO_CHAR(c.cost, '$9,999') AS cost,
+       p.course_no AS prerequisite_course_no,
+       p.description AS prerequisite_description
+FROM course c
+LEFT JOIN course p
+    ON c.prerequisite = p.course_no
+ORDER BY c.course_no;
+
+
+-- ============================================================
+-- QUESTION 13
+-- List the course or courses that have the most sections.
+-- ============================================================
+
+SELECT c.course_no,
+       c.description,
+       COUNT(s.section_id) AS number_of_sections
+FROM course c
+JOIN section s
+    ON c.course_no = s.course_no
+GROUP BY c.course_no,
+         c.description
+HAVING COUNT(s.section_id) = (
+    SELECT MAX(section_count)
+    FROM (
+        SELECT COUNT(*) AS section_count
+        FROM section
+        GROUP BY course_no
+    )
+)
+ORDER BY c.course_no;
+
+
+-- ============================================================
+-- QUESTION 14
+-- List sections where the number of enrolled students
+-- is greater than the section capacity.
+-- ============================================================
+
+SELECT c.course_no,
+       c.description,
+       s.start_date_time,
+       s.capacity,
+       COUNT(e.student_id) AS enrolled_students
+FROM course c
+JOIN section s
+    ON c.course_no = s.course_no
+JOIN enrollment e
+    ON s.section_id = e.section_id
+GROUP BY c.course_no,
+         c.description,
+         s.section_id,
+         s.start_date_time,
+         s.capacity
+HAVING COUNT(e.student_id) > s.capacity
+ORDER BY c.course_no,
+         s.start_date_time;
